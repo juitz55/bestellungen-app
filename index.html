@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Bestellungen</title>
+  
+  <!-- PWA & Mobile Meta Tags -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2563eb">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Bestellungen">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+
+  <link rel="stylesheet" href="styles.css?v=7">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Top Header -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24">
+            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm6 12H6v-1c0-2 4-3.1 6-3.1s6 1.1 6 3.1v1z"/>
+          </svg>
+        </div>
+        <div class="brand-title">
+          <h1>Bestellungen</h1>
+          <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 2px;">
+            <p id="currentDateDisplay" style="margin: 0; font-size: 0.78rem;">Auftrags- &amp; Terminverwaltung</p>
+            <div id="syncStatusBadge" class="sync-badge" title="Tippen für Sofort-Synchronisation">
+              <span class="sync-dot"></span>
+              <span id="syncStatusText">Synchronisiert</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="connectPhoneBtn" class="icon-btn" title="QR-Code fürs Handy anzeigen" aria-label="QR-Code fürs Handy">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="5" y="2" width="14" height="20" rx="3" ry="3"></rect>
+            <line x1="12" y1="18" x2="12.01" y2="18"></line>
+          </svg>
+        </button>
+        <button id="themeToggleBtn" class="icon-btn" title="Design umschalten" aria-label="Design umschalten">
+          <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </button>
+        <button id="backupModalBtn" class="icon-btn" title="Export / Daten" aria-label="Exportieren">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- PWA Install Banner -->
+    <div id="pwaInstallBanner" style="display:none; background: linear-gradient(135deg, #1d4ed8, #2563eb); color: white; padding: 12px 16px; border-radius: 14px; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(37,99,235,0.3); align-items: center; justify-content: space-between; gap: 10px;">
+      <div style="font-size: 0.85rem; line-height: 1.3;">
+        <strong>Als App installieren</strong><br>
+        <span style="opacity: 0.9; font-size: 0.78rem;">Zum Startbildschirm hinzufügen für Offline-Nutzung</span>
+      </div>
+      <div style="display: flex; gap: 6px; align-items: center;">
+        <button id="pwaInstallBtn" style="background: white; color: #1d4ed8; border: none; font-weight: 700; padding: 8px 14px; border-radius: 8px; font-size: 0.82rem; cursor: pointer; white-space: nowrap;">Installieren</button>
+        <button id="pwaDismissBtn" style="background: transparent; color: white; border: none; font-size: 1.2rem; cursor: pointer; padding: 2px 6px; line-height: 1;" title="Schließen">&times;</button>
+      </div>
+    </div>
+
+    <!-- KPI Summary Cards -->
+    <section class="stats-grid">
+      <div class="stat-card highlight">
+        <div class="stat-val" id="statOpenCount">0</div>
+        <div class="stat-lbl">Offen</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="statDueTodayCount">0</div>
+        <div class="stat-lbl">Heute fällig</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="statTotalSum">0 €</div>
+        <div class="stat-lbl">Offene Summe</div>
+      </div>
+    </section>
+
+    <!-- Search Bar -->
+    <div class="search-box">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+      </svg>
+      <input type="search" id="searchInput" placeholder="Bestellung, Name, Datum suchen..." autocomplete="off">
+    </div>
+
+    <!-- Filter Chips -->
+    <div class="filter-wrapper">
+      <div class="filter-chips" id="filterChips">
+        <button class="chip active" data-filter="all">Alle <span class="badge" id="badgeAll">0</span></button>
+        <button class="chip" data-filter="open">Offen <span class="badge" id="badgeOpen">0</span></button>
+        <button class="chip" data-filter="dueToday">Heute fällig <span class="badge" id="badgeDueToday">0</span></button>
+        <button class="chip" data-filter="thisWeek">Diese Woche <span class="badge" id="badgeThisWeek">0</span></button>
+        <button class="chip" data-filter="completed">Geliefert <span class="badge" id="badgeCompleted">0</span></button>
+      </div>
+    </div>
+
+    <!-- List Info & Sort -->
+    <div class="list-info-bar">
+      <span class="list-count" id="listCount">0 Einträge</span>
+      <select id="sortSelect" class="sort-select">
+        <option value="date-desc">Datum (neueste)</option>
+        <option value="date-asc">Datum (älteste)</option>
+        <option value="amount-desc">Betrag (höchster)</option>
+        <option value="name-asc">Name (A-Z)</option>
+        <option value="title-asc">Titel (A-Z)</option>
+      </select>
+    </div>
+
+    <!-- Main Orders List -->
+    <main id="ordersList" class="orders-list">
+      <!-- Dynamisch befüllt via app.js -->
+    </main>
+
+    <!-- Empty State -->
+    <div id="emptyState" class="empty-state" style="display: none;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+      </svg>
+      <h3>Keine Bestellungen gefunden</h3>
+      <p>Tippe auf das Plus (+), um die erste Bestellung mit Datum einzutragen.</p>
+    </div>
+
+    <!-- Floating Action Button (+) -->
+    <button id="addOrderBtn" class="fab-btn" title="Neue Bestellung hinzufügen" aria-label="Neue Bestellung hinzufügen">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <line x1="12" y1="5" x2="12" y2="19"></line>
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Modal: Bestellung Hinzufügen / Bearbeiten -->
+  <div id="orderModal" class="modal-overlay">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-header">
+        <h2 id="modalTitle">Neue Bestellung</h2>
+        <button id="closeModalBtn" class="close-btn" aria-label="Schließen">
+          <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <form id="orderForm">
+        <input type="hidden" id="orderId">
+
+        <div class="form-group">
+          <label for="orderTitle">Artikel *</label>
+          <input type="text" id="orderTitle" class="form-control" placeholder="z. B. Brot" required>
+        </div>
+
+        <div class="form-group">
+          <label for="orderName">Name</label>
+          <input type="text" id="orderName" class="form-control" placeholder="z. B. Max Mustermann / Fa. Müller">
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="entryDate">Datum *</label>
+            <input type="date" id="entryDate" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label for="orderAmount">Betrag (€)</label>
+            <input type="number" id="orderAmount" class="form-control" placeholder="0,00" step="0.01" min="0">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="orderStatus">Status</label>
+          <select id="orderStatus" class="form-control">
+            <option value="open">Offen (in Auftrag gegeben)</option>
+            <option value="in_progress">In Bearbeitung / Versand</option>
+            <option value="completed">Geliefert / Abgeschlossen</option>
+            <option value="cancelled">Storniert</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="orderNotes">Notizen / Details</label>
+          <textarea id="orderNotes" class="form-control" placeholder="Bestellnummer, Tracking-Code, Bemerkungen..."></textarea>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" id="cancelFormBtn" class="btn-secondary">Abbrechen</button>
+          <button type="submit" class="btn-primary" id="saveOrderBtn">Speichern</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Handy Verbinden & QR-Code -->
+  <div id="connectModal" class="modal-overlay center-modal">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <h2>📱 Auf dem Handy öffnen</h2>
+        <button id="closeConnectModalBtn" class="close-btn" aria-label="Schließen">
+          <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div style="text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; margin-bottom: 16px;">
+        <p style="font-size: 0.88rem; color: var(--text-muted); line-height: 1.4;">
+          Scanne diesen QR-Code mit deiner <strong>Smartphone-Kamera</strong> (im selben WLAN), um die App sofort auf dem Handy zu nutzen:
+        </p>
+
+        <div id="qrcodeContainer" style="background: #ffffff; padding: 14px; border-radius: 16px; box-shadow: var(--shadow-md); min-height: 180px; min-width: 180px; display: flex; align-items: center; justify-content: center;">
+          <!-- QR Code wird hier generiert -->
+        </div>
+
+        <div style="width: 100%; background: var(--bg-color); border: 1px solid var(--card-border); padding: 10px 14px; border-radius: 8px; font-size: 0.88rem; font-family: monospace; word-break: break-all; color: var(--primary); font-weight: 700;" id="phoneUrlDisplay">
+          Wird geladen...
+        </div>
+
+        <div style="text-align: left; background: var(--primary-light); border-left: 3px solid var(--primary); padding: 12px 14px; border-radius: 8px; font-size: 0.82rem; color: var(--text-main); width: 100%;">
+          <strong>Als vollwertige App am Handy speichern:</strong><br>
+          • <strong>iPhone:</strong> Unten auf <em>Teilen</em> (Viereck mit Pfeil nach oben) &rarr; <em>„Zum Home-Bildschirm“</em>.<br>
+          • <strong>Android:</strong> Oben rechts auf das <em>Menü (3 Punkte)</em> &rarr; <em>„App installieren“</em> oder <em>„Zum Startbildschirm hinzufügen“</em>.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Datensicherung & CSV Export -->
+  <div id="backupModal" class="modal-overlay center-modal">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <h2>Daten & Export</h2>
+        <button id="closeBackupModalBtn" class="close-btn" aria-label="Schließen">
+          <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div style="text-align: left; display: flex; flex-direction: column; gap: 14px; margin-bottom: 20px;">
+        <p style="font-size: 0.9rem; color: var(--text-muted);">
+          Hier kannst du deine Bestellungen exportieren (z. B. für Excel) oder ein Backup als JSON herunterladen.
+        </p>
+
+        <button id="exportCsvBtn" class="btn-primary" style="background: #10b981; display: flex; align-items: center; justify-content: center; gap: 8px;">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          Als Excel / CSV herunterladen
+        </button>
+
+        <button id="exportJsonBtn" class="btn-secondary" style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+          JSON-Sicherung speichern
+        </button>
+
+        <label class="btn-secondary" style="display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; margin-top: 4px;">
+          <span>JSON-Sicherung wiederherstellen</span>
+          <input type="file" id="importJsonInput" accept=".json" style="display: none;">
+        </label>
+
+        <button id="sampleDataBtn" class="btn-secondary" style="font-size: 0.8rem; color: var(--text-sub);">
+          Demo-Beispieldaten laden
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notifier -->
+  <div id="toast" class="toast">
+    <span id="toastMessage">Gespeichert</span>
+  </div>
+
+  <script src="qrcode.min.js"></script>
+  <script src="app.js?v=7"></script>
+  <script>
+    // Service Worker registrieren für vollen Offline- und PWA-Betrieb
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').then((reg) => {
+          console.log('PWA Service Worker bereit:', reg.scope);
+        }).catch((err) => {
+          console.log('Service Worker Registrierung fehlgeschlagen:', err);
+        });
+      });
+    }
+  </script>
+</body>
+</html>
